@@ -217,6 +217,50 @@ list(
     log_info("saving: {filename}")
     st_write(stations, filename)
     filename
+  }),
+  tar_target(wqp_stations_shp_file, {
+    counts <- wqp_stations_sf %>% 
+      st_drop_geometry() %>% 
+      select(characteristic_name, monitoring_location_identifier, result_count) %>% 
+      left_join(
+        tribble(
+          ~characteristic_name, ~characteristic_id,
+          "Phosphorus", "TP",
+          "Nitrogen", "TN",
+          "Temperature, water", "TEMP",
+          "Chlorophyll a", "CHLA",
+          "Salinity", "SALINITY",
+          "pH", "PH",
+          "Dissolved oxygen (DO)", "DO",
+          "Enterococcus", "ENT"
+        ),
+        by = "characteristic_name"
+      ) %>% 
+      select(-characteristic_name) %>% 
+      pivot_wider(names_from = "characteristic_id", values_from = "result_count", values_fill = 0)
+    stations <- wqp_stations_sf %>% 
+      select(-characteristic_name) %>% 
+      distinct() %>% 
+      left_join(counts, by = "monitoring_location_identifier")
+    filename <- "out/wqp-stations.shp"
+    # if (file.exists(filename)) {
+    #   log_info("deleting: {filename}")
+    #   unlink(filename)
+    # }
+    log_info("saving: {filename}")
+    stations %>% 
+      select(
+        PROVIDER = provider_name,
+        ORG_ID   = organization_identifier,
+        ORG_NAME = organization_formal_name,
+        SITE_ID  = monitoring_location_identifier,
+        SITE_NM  = monitoring_location_name,
+        TYPE     = monitoring_location_type_name,
+        URL      = site_url,
+        TP:ENT
+      ) %>% 
+      st_write(filename, append = FALSE)
+    filename
   })
 )
 
