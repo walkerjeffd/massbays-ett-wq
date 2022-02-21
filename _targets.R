@@ -12,6 +12,30 @@ if (interactive()) {
 # load all functions
 invisible(sapply(list.files("R", pattern = ".R", full.names = TRUE), source))
 
+wqp_fetch_data <- function (characteristic_name, station_ids, batch_size = 50, ...) {
+  if (length(station_ids) > batch_size) {
+    current_stations <- station_ids[1:batch_size]
+    next_stations <- station_ids[(batch_size + 1):length(station_ids)]
+  } else {
+    current_stations <- station_ids
+    next_stations <- c()
+  }
+  log_info("fetch: {characteristic_name} (current={length(current_stations)}, remaining={length(next_stations)})")
+  x <- dataRetrieval::readWQPdata(
+      siteid = current_stations,
+      characteristicName = characteristic_name,
+      sampleMedia = "Water",
+      ...
+    ) %>% 
+    mutate(across(everything(), as.character))
+
+  if (length(next_stations) > 0) {
+    Sys.sleep(2)
+    return(bind_rows(x, wqp_fetch_data(characteristic_name, next_stations, batch_size = batch_size, ...)))
+  }
+  x
+}
+
 list(
   tar_target(embayments_file, "data/embayments_watersheds/embayment_watersheds.shp", format = "file"),
   tar_target(embayments, st_read(embayments_file) %>% st_transform(crs = "EPSG:2249")),
@@ -28,7 +52,6 @@ list(
   }),
   
   tar_target(wqp_characteristic_names, {
-    
     c(
       "Phosphorus",
       "Nitrogen",
@@ -261,7 +284,177 @@ list(
       ) %>% 
       st_write(filename, append = FALSE)
     filename
+  }),
+  
+  tar_target(ett_stations_exclude_types, {
+    c(
+      "Atmosphere",
+      "Facility",
+      "Facility Industrial",
+      "Facility Municipal Sewage (POTW)",
+      "Facility: Outfall",
+      "Facility: Wastewater land application",
+      "Spring",
+      "Well",
+      "Well: Multiple wells",
+      "Well: Test hole not completed as a well"
+    )
+  }),
+  tar_target(ett_stations, {
+    wqp_stations_sf %>%
+      filter(!monitoring_location_type_name %in% ett_stations_exclude_types)
+  }),
+  tar_target(ett_wq_params, {
+    tribble(
+      ~wq_param, ~characteristic_name,
+      "TP", "Phosphorus",
+      "TN", "Nitrogen",
+      "TEMP", "Temperature, water",
+      "DO", "Dissolved oxygen (DO)",
+      "PH", "pH"
+    )
+  }),
+  tar_target(ett_wq_params_fraction_exclude, {
+    tribble(
+      ~characteristic_name, ~result_sample_fraction_text,
+      "Phosphorus", "Dissolved",
+      "Nitrogen", "Dissolved"
+    )
+  }),
+  tar_target(ett_wq_fetch, {
+    ett_stations %>%
+      st_drop_geometry() %>%
+      nest_by(characteristic_name, .key = "stations") %>% 
+      semi_join(ett_wq_params, by = "characteristic_name") %>%
+      rowwise() %>% 
+      mutate(
+        station_ids = list(unique(stations$monitoring_location_identifier)),
+        wqp = list(wqp_fetch_data(characteristic_name, station_ids, batch_size = 50))
+      )
+  }),
+  tar_target(ett_wq_data_summary, {
+    x <- ett_wq_fetch %>% 
+      select(wqp) %>% 
+      unnest(wqp) %>% 
+      clean_names()
+
+    t_sample_fraction <- x %>% 
+      count(characteristic_name, result_sample_fraction_text)
+    t_characteristic_units <- x %>% 
+      count(characteristic_name, result_measure_measure_unit_code)
+    t_status_identifier <- x %>% 
+      count(characteristic_name, result_status_identifier)
+    t_value_type <- x %>% 
+      count(characteristic_name, result_value_type_name)
+    t_usgs_pcode <- x %>% 
+      count(characteristic_name, usgsp_code)
+    t_activity_media_subdivision <- x %>% 
+      count(characteristic_name, activity_media_subdivision_name)
+    t_value_nonnumeric <- x %>% 
+      mutate(parsed_value = parse_number(result_measure_value)) %>% 
+      filter(is.na(parsed_value), !is.na(result_measure_value)) %>% 
+      count(characteristic_name, result_measure_value)
+    
+    p_hist <- x %>% 
+      bind_rows(mutate(x, characteristic_name = "(ALL)")) %>% 
+      count(monitoring_location_identifier, characteristic_name) %>% 
+      ggplot(aes(n)) +
+      geom_histogram() +
+      scale_x_log10() +
+      facet_wrap(vars(characteristic_name), scales = "free") +
+      labs(x = "# samples per station")
+    
+    
+    p_cdf <- x %>% 
+      bind_rows(mutate(x, characteristic_name = "(ALL)")) %>% 
+      count(monitoring_location_identifier, characteristic_name) %>% 
+      ggplot(aes(n)) +
+      stat_ecdf() +
+      scale_x_log10() +
+      scale_y_continuous(labels = scales::percent, breaks = scales::pretty_breaks()) +
+      facet_wrap(vars(characteristic_name), scales = "free") +
+      labs(x = "# samples per station", y = "non-exceedance freq")
+    
+    p_period <- x %>% 
+      ggplot(aes(as_date(activity_start_date), characteristic_name)) +
+      geom_jitter(size = 0.2) +
+      labs(x = "activity_start_date")
+    
+    p_dup_date <- x %>% 
+      nest_by(monitoring_location_identifier, characteristic_name, activity_start_date, activity_start_time_time) %>% 
+      mutate(n = nrow(data)) %>% 
+      arrange(desc(n)) %>%
+      head() %>% 
+      unnest(data) %>% 
+      ggplot(aes(ymd(activity_start_date), parse_number(result_measure_value))) +
+      geom_point(aes()) +
+      labs(x = "activity_start_date", y = "result_measure_value") +
+      facet_wrap(vars(characteristic_name, monitoring_location_identifier), labeller = label_both, scales = "free")
+    
+    p_depth <- x %>% 
+      ggplot(aes(as_date(activity_start_date), parse_number(activity_depth_height_measure_measure_value))) +
+      geom_point() +
+      facet_wrap(vars(characteristic_name)) +
+      labs(
+        x = "activity_start_date",
+        y = "activity_depth_height_measure_measure_value",
+        title = "WQP Data | Sample Depths",
+        caption = glue("updated: {now()}")
+      )
+    p_value <- x %>% 
+      ggplot(aes(as_date(activity_start_date), parse_number(result_measure_value))) +
+      geom_point() +
+      facet_wrap(vars(characteristic_name, result_measure_measure_unit_code), scales = "free") +
+      labs(
+        x = "activity_start_date",
+        y = "result_measure_value",
+        title = "WQP Data | Sample Values",
+        caption = glue("updated: {now()}")
+      )
+    
+    list(
+      data = x,
+      plot = list(
+        depth = p_depth,
+        value = p_value,
+        dup_date = p_dup_date,
+        hist = p_hist,
+        period = p_period
+      ),
+      table = list(
+        sample_fraction = t_sample_fraction,
+        characteristic_units = t_characteristic_units,
+        status_identifier = t_status_identifier,
+        value_type = t_value_type,
+        usgs_pcode = t_usgs_pcode,
+        activity_media_subdivision = t_activity_media_subdivision,
+        value_nonnumeric = t_value_nonnumeric
+      )
+    )
+  }),
+  tar_target(ett_wq_meta, {
+    ett_wq_fetch %>%
+      tibble() %>% 
+      clean_names() %>%
+      inner_join(ett_wq_params, by = c("characteristic_name", "result_sample_fraction_text"))
+  }),
+  tar_target(ett_wq, {
+    ett_wq_meta %>%
+      transmute(
+        station_id = monitoring_location_identifier,
+        wq_param,
+        date = activity_start_date,
+        datetime = ymd_hms(str_c(as.character(date), activity_start_time_time, sep = " ")),
+        value = result_measure_value,
+        detection = result_detection_condition_text,
+        units = result_measure_measure_unit_code
+      )
+  }),
+  tar_target(ett_wq_boxplot, {
+    ett_wq %>% 
+      ggplot(aes(station_id, value)) +
+      geom_boxplot() +
+      coord_flip() +
+      facet_wrap(vars(units), scales = "free_x")
   })
 )
-
-# 
