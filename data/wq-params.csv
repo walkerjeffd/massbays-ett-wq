@@ -1,0 +1,23 @@
+wq_param,characteristic_name
+TP,Phosphorus
+TP,"Total Phosphorus, mixed forms"
+TKN,Kjeldahl nitrogen
+TKN,Total Kjeldahl nitrogen
+TKN,Total Kjeldahl nitrogen (Organic N & NH3)
+NO23N,Inorganic nitrogen (nitrate and nitrite)
+NO23N,Nitrate + Nitrite
+TN,Nitrogen
+TN,"Nitrogen, mixed forms (NH3), (NH4), organic, (NO2) and (NO3)"
+TN,"Total Nitrogen, mixed forms"
+TN,"Total Nitrogen, mixed forms (NH3), (NH4), organic, (NO2) and (NO3)"
+TN,Nutrient-nitrogen
+CHLA,Chlorophyll a (probe)
+CHLA,Chlorophyll a
+ENT,Enterococcus
+ECOLI,Escherichia coli
+TEMP,"Temperature, water"
+PH,pH
+DO,Dissolved oxygen (DO)
+SAL,Salinity
+TURB,Turbidity
+TURB,Turbidity Field

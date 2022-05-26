@@ -1,0 +1,34 @@
+wq_param,wqp_units,convert_base,convert_slope,ett_units
+CHLA,mg/m3,0,1,ug/L
+CHLA,ug/l,0,1,ug/L
+DO,mg/l,0,1,mg/L
+DO,ppm,0,1,mg/L
+ECOLI,#/100ml,0,1,#/100mL
+ECOLI,cfu/100ml,0,1,#/100mL
+ECOLI,MPN/100ml,0,1,#/100mL
+ENT,#/100ml,0,1,#/100mL
+ENT,cfu/100ml,0,1,#/100mL
+ENT,MPN/100ml,0,1,#/100mL
+ENT,,0,1,#/100mL
+NO23N,mg/l,0,1,mg/L
+NO23N,mg/l as N,0,1,mg/L
+NO23N,umol,0,0.0140067,mg/L
+PH,None,0,1,std units
+PH,std units,0,1,std units
+SAL,mg/mL @25C,0,1,ppt
+SAL,ppm,0,1.00E-03,ppt
+SAL,ppt,0,1,ppt
+SAL,ppth,0,1,ppt
+SAL,PSS,0,1,ppt
+SAL,PSU,0,1,ppt
+TEMP,deg C,0,1,deg C
+TEMP,deg F,-32,0.5556,deg C
+TKN,mg/l,0,1,mg/L
+TKN,mg/l as N,0,1,mg/L
+TN,mg/l,0,1,mg/L
+TN,umol,0,0.0140067,mg/L
+TP,mg/l,0,1000,ug/L
+TP,mg/l as P,0,1000,ug/L
+TP,ug/l,0,1,ug/L
+TP,umol,0,30.973762,ug/L
+TURB,NTU,0,1,NTU
