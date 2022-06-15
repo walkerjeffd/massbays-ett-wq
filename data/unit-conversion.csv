@@ -9,6 +9,7 @@ ECOLI,MPN/100ml,0,1,#/100mL
 ENT,#/100ml,0,1,#/100mL
 ENT,cfu/100ml,0,1,#/100mL
 ENT,MPN/100ml,0,1,#/100mL
+ENT,CCE/100ml,0,1,#/100mL
 ENT,,0,1,#/100mL
 NO23N,mg/l,0,1,mg/L
 NO23N,mg/l as N,0,1,mg/L
