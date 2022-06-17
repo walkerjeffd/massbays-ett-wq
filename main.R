@@ -139,6 +139,8 @@ wqp_stations %>%
   ggtitle("WQP Stations by Location Type")
 
 # save stations to shapefile: out/wqp-stations/wqp-stations.shp
+# useful for reviewing all available WQP stations in GIS
+# this shapefile is NOT used in the ETT website itself
 dir.create("out/wqp-stations", recursive = TRUE, showWarnings = FALSE)
 wqp_stations %>% 
   select(
@@ -369,6 +371,9 @@ ett_samples <- wqp_samples %>%
   )
 
 # ETT: export stations --------------------------------------------------
+
+# create ETT output folder
+dir.create("out/ett", showWarnings = FALSE, recursive = TRUE)
 
 # create summary table of sample counts by parameter and station_id
 ett_stations_counts <- ett_samples %>% 
