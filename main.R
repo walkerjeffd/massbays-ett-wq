@@ -82,7 +82,11 @@ unit_conversion <- read_csv("data/unit-conversion.csv", col_types = cols(
 
 # EDA units ---------------------------------------------------------------
 
-eda_units <- st_read("data/EDA_UNITS_REVISED/EDA_UNITS_REVISED.shp") %>%
+# this repo contains the most recent version of the EDA_UNITS polygons
+# if a newer version is available, change the path to the shapefile below
+# the EDA_UNITS shapefile should have an attribute called 'NAME' with the unit name
+# if this attribute has a different name (e.g., 'EDA_NAME'), then rename the column to 'NAME' after it is loaded
+eda_units <- st_read("data/EDA_UNITS_simplified_Final_MarbleheadNeckCorrection/EDA_UNITS_simplified_Final.shp") %>%
   st_transform(crs = "EPSG:2249")
 
 eda_units_bbox <- eda_units %>%
