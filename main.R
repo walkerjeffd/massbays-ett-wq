@@ -288,8 +288,12 @@ tabyl(wqp_samples_excluded, wqp_filters, wq_param)
 wqp_samples <- wqp_samples_filters %>% 
   filter(is.na(wqp_filters)) %>% 
   select(-wqp_filters) %>% 
+  mutate(
+    wqp_units = tolower(wqp_units)
+  ) |> 
   left_join(
-    unit_conversion,
+    unit_conversion |> 
+      mutate(wqp_units = tolower(wqp_units)),
     by = c("wq_param", "wqp_units")
   ) %>%
   mutate(
